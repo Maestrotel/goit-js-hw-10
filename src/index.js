@@ -6,63 +6,75 @@ import Notiflix from 'notiflix';
 const DEBOUNCE_DELAY = 300;
 
 const refs = {
-  input: document.querySelector('input'),
+  input: document.querySelector('#search-box'),
   listElem: document.querySelector('.country-list'),
   infoElem: document.querySelector('.country-info'),
 };
 
-refs.input.addEventListener('input', e => {
-  e.preventDefault();
-  const findCountry = e.target.value;
-  fetchCountries(findCountry).then((data) => {
-    (data[0]);
-  });
-});
+const cleanMarkup = ref => (ref.innerHTML = '');
 
-function infoCountries(data) {
-  let markup = data.map(({ name, capital, population, flags, languages }) =>
-    ` <img src="${flags.png}" alt="country-flag" />
-    <h1>${name}</h1>
-    <p>Capital: ${capital}</p>
-    <p>Population: ${population}</p>
-    <p>Languages: ${Object.values(languages)}</p>
-  `).join('');
-}
+refs.input.addEventListener('input', debounce(inputHandler, DEBOUNCE_DELAY));
 
+function inputHandler(e) {
+  const textInput = e.target.value.trim();
 
+  if (!textInput) {
+    cleanMarkup(refs.listElem);
+    cleanMarkup(refs.infoElem);
+    return;
+  }
 
-function listCountries(data) {
-  let markup = data.map(({ name, flags }) =>
-    ` <li>
-    <img src="${flags.png}" alt="country-flag" />
-    <p>${name}</p>
-  </li>
-  <li>
-    <img src="${flags.png}" alt="country-flag" />
-    <p>${name}</p>
-  </li>
-  <li>
-    <img src="${flags.png}" alt="country-flag" />
-    <p>${name}</p>
-  </li>
-  <li>
-    <img src="${flags.png}" alt="country-flag" />
-    <p>${name}</p>
-  </li>
-  `).join('');
+  fetchCountries(textInput)
+    .then(data => {
+      console.log(data);
+      if (data.length > 10) {
+        Notiflix.Notify.info(
+          'Too many matches found. Please enter a more specific name'
+        );
+        return;
+      }
+      renderCountries(data);
+    })
+    .catch(err => {
+      cleanMarkup(refs.listElem);
+      cleanMarkup(refs.infoElem);
+      Notiflix.Notify.failure('Oops, there is no country with that name');
+    });
 }
 
 function renderCountries(data) {
   if (data.length === 1) {
-    const markInfo = infoCountries(data);
-    refs.infoElem.innerHTML = markInfo;
+    cleanMarkup(refs.listElem);
+    const markupInfo = infoCountry(data);
+    refs.infoElem.innerHTML = markupInfo;
   } else {
-    const markList = listCountries(data);
-    refs.listElem.innerHTML = markList;
+    cleanMarkup(refs.infoElem);
+    const markupList = listCountries(data);
+    refs.listElem.innerHTML = markupList;
   }
 }
 
+function infoCountry(data) {
+  return data
+    .map(
+      ({ name, capital, population, flags, languages }) =>
+        ` <img src="${flags.png}" alt="country-flag" width="40px"/>
+    <h1 style="display: inline;">${name.official}</h1>
+    <p><strong>Capital:</strong> ${capital}</p>
+    <p><strong>Population:</strong> ${population}</p>
+    <p><strong>Languages:</strong> ${Object.values(languages)}</p> `
+    )
+    .join('');
+}
 
-renderCountries(data);
-
-fetchCountries(name)
+function listCountries(data) {
+  return data
+    .map(
+      ({ name, flags }) =>
+        `<li style="margin-bottom: 13px">
+        <img src="${flags.png}" alt="country-flag" width="40px"/>
+        <p style="display: inline;">${name.official}</p>
+     </li> `
+    )
+    .join('');
+}
